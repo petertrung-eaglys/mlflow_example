@@ -1,4 +1,4 @@
-import xgboost as xgb
+from dataset import load_dataset, split_dataset
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
 from xgboost import XGBClassifier
 
@@ -27,3 +27,28 @@ def xgb_model(xtrain, ytrain, xtest, ytest):
     print(f"Model F1-score (XGBoost) = {f1:.3f}")
     print(f"Model Precision (XGBoost) = {precision:.3f}")
     print(f"Model Recall (XGBoost) = {recall:.3f}")
+
+
+def main():
+    args = argument_parser()
+    # Load dataset
+    labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
+
+    # Split dataset into training and testing sets
+    xtrain, xtest, ytrain, ytest = split_dataset(features, labels)
+
+    # Train and evaluate XGBoost model
+    xgb_model(xtrain, ytrain, xtest, ytest)
+
+
+def argument_parser():
+    import argparse
+    parser = argparse.ArgumentParser(description='XGBoost Classifier')
+    parser.add_argument('--matrix', type=str, default='data/YelpChi.mat', help='the filename of the matrix file')
+    parser.add_argument('--adjlist', type=str, default='data/yelp_home_adjlists.pickle', help='the filename of the adjacency list file')
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    main()
