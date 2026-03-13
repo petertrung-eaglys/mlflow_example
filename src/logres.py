@@ -1,6 +1,7 @@
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, accuracy_score, recall_score, precision_score, roc_auc_score, average_precision_score
+import argparse
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score, recall_score, precision_score, roc_auc_score
 from dataset import load_dataset, split_dataset
 
 
@@ -41,12 +42,22 @@ def main():
 
 
 def argument_parser():
-    import argparse
-    parser = argparse.ArgumentParser(description='Logistic Regression')
-    parser.add_argument('--matrix', type=str, default='data/YelpChi.mat', help='the filename of the matrix file')
-    parser.add_argument('--adjlist', type=str, default='data/yelp_home_adjlists.pickle', help='the filename of the adjacency list file')
+    parser = argparse.ArgumentParser(description="Logistic Regression")
+    parser.add_argument(
+        "--matrix",
+        type=str,
+        default="data/YelpChi.mat",
+        help="the filename of the matrix file",
+    )
+    parser.add_argument(
+        "--adjlist",
+        type=str,
+        default="data/yelp_home_adjlists.pickle",
+        help="the filename of the adjacency list file",
+    )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     main()

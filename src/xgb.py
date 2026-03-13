@@ -1,3 +1,5 @@
+import argparse
+
 from dataset import load_dataset, split_dataset
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
 from xgboost import XGBClassifier
@@ -42,10 +44,19 @@ def main():
 
 
 def argument_parser():
-    import argparse
-    parser = argparse.ArgumentParser(description='XGBoost Classifier')
-    parser.add_argument('--matrix', type=str, default='data/YelpChi.mat', help='the filename of the matrix file')
-    parser.add_argument('--adjlist', type=str, default='data/yelp_home_adjlists.pickle', help='the filename of the adjacency list file')
+    parser = argparse.ArgumentParser(description="XGBoost Classifier")
+    parser.add_argument(
+        "--matrix",
+        type=str,
+        default="data/YelpChi.mat",
+        help="the filename of the matrix file",
+    )
+    parser.add_argument(
+        "--adjlist",
+        type=str,
+        default="data/yelp_home_adjlists.pickle",
+        help="the filename of the adjacency list file",
+    )
     args = parser.parse_args()
     return args
 
