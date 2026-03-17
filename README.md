@@ -1,6 +1,6 @@
 # MLflow Basic — Fraud Detection on YelpChi
 
-MLflow-tracked ML experimentation for fraud detection on the [YelpChi](https://github.com/YingtongDou/CARE-GNN) dataset. Compares classical and deep learning models on a graph-structured dataset (~45k nodes, 32 features, binary fraud labels).
+MLflow-tracked ML experimentation for fraud detection on the [YelpChi](https://github.com/YingtongDou/CARE-GNN) dataset. Compares classical and deep learning models on a graph-structured dataset (~45k nodes, 32 features, binary fraud labels). This example was taken from the book [Graph Neural Network in Action](https://www.manning.com/books/graph-neural-networks-in-action) and modified.
 
 ## Setup
 
@@ -10,7 +10,13 @@ MLflow-tracked ML experimentation for fraud detection on the [YelpChi](https://g
 uv sync
 ```
 
-**Configure MLflow:**
+**Setting up MLflow for tracking**
+
+There are three different options to run MLflow for tracking, as shown on the figure below
+
+![Tracking options for MLflow](doc/tracking-setup-overview.png)
+
+**Configure MLflow environment variables:**
 
 ```bash
 cp .env.example .env
@@ -40,18 +46,17 @@ uv run python src/xgb.py
 # MLP (PyTorch)
 uv run python src/mlp.py
 uv run python src/mlp.py --epochs 1000 --patience 50 --hidden-sizes 64 32 --lr 0.001
+
+# GCN (PyTorch Geometric)
+uv run python src/gcn.py
+uv run python src/gcn.py --epochs 1000 --patience 50 --hidden-sizes 64 32
+
+# GAT (PyTorch Geometric)
+uv run python src/gat.py
+uv run python src/gat.py --epochs 1000 --patience 50 --hidden-sizes 64 32 --heads 4
 ```
 
 All scripts accept `--matrix` and `--adjlist` to override default data paths.
-
-### MLP options
-
-| Flag | Default | Description |
-|---|---|---|
-| `--epochs` | 10000 | Maximum training epochs |
-| `--patience` | 100 | Early stopping patience |
-| `--hidden-sizes` | `64` | Hidden layer sizes, e.g. `--hidden-sizes 64 32` |
-| `--lr` | 0.001 | Learning rate |
 
 ### Logistic Regression options
 
@@ -60,14 +65,58 @@ All scripts accept `--matrix` and `--adjlist` to override default data paths.
 | `--thres` | 0.5 | Classification threshold |
 | `--random-state` | 0 | Random seed |
 
+### XGBoost options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--n-estimators` | 100 | Number of boosting rounds |
+| `--max-depth` | 6 | Maximum tree depth |
+| `--lr` | 0.3 | Boosting learning rate (eta) |
+| `--subsample` | 1.0 | Subsample ratio of training instances |
+| `--colsample-bytree` | 1.0 | Subsample ratio of columns per tree |
+| `--thres` | 0.5 | Classification threshold |
+
+### MLP options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--epochs` | 10000 | Maximum training epochs |
+| `--patience` | 100 | Early stopping patience |
+| `--hidden-sizes` | 64 | Hidden layer sizes, e.g. `--hidden-sizes 64 32` |
+| `--lr` | 0.001 | Learning rate |
+| `--thres` | 0.5 | Classification threshold |
+
+### GCN options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--epochs` | 10000 | Maximum training epochs |
+| `--patience` | 100 | Early stopping patience |
+| `--hidden-sizes` | 64 | Hidden layer sizes, e.g. `--hidden-sizes 64 32` |
+| `--lr` | 0.001 | Learning rate |
+| `--thres` | 0.5 | Classification threshold |
+
+### GAT options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--epochs` | 10000 | Maximum training epochs |
+| `--patience` | 100 | Early stopping patience |
+| `--batch-size` | 256 | Batch size for neighbour sampling |
+| `--hidden-sizes` | 32 | Hidden layer sizes, e.g. `--hidden-sizes 64 32` |
+| `--heads` | 1 | Number of attention heads per GAT layer |
+| `--lr` | 0.001 | Learning rate |
+| `--thres` | 0.5 | Classification threshold |
+
 ## Models
 
 | Script | Model | Framework |
 |---|---|---|
 | `src/logres.py` | Logistic Regression | scikit-learn |
 | `src/xgb.py` | XGBoost | xgboost |
-| `src/mlp.py` | MLP (32→64→1) with early stopping | PyTorch |
-| `src/gcn.py` | Graph Convolutional Network *(in progress)* | PyTorch Geometric |
+| `src/mlp.py` | MLP with configurable hidden layers and early stopping | PyTorch |
+| `src/gcn.py` | Graph Convolutional Network with configurable hidden layers | PyTorch Geometric |
+| `src/gat.py` | Graph Attention Network with configurable hidden layers and attention heads | PyTorch Geometric |
 
 ## Metrics
 

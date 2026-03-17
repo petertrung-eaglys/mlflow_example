@@ -1,4 +1,5 @@
 import os
+import logging
 import torch
 import mlflow
 import argparse
@@ -16,6 +17,9 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class GAT(torch.nn.Module):
@@ -51,10 +55,8 @@ def main():
     mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
     mlflow.set_experiment(os.environ["EXPERIMENT_NAME"])
 
-    # Load dataset
+    logger.info("Loading dataset")
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
-
-    # Split dataset into training and testing sets
     _, _, _, _, idxtrain, idxtest = split_dataset(features, labels)
     data = graph_dataset(homogenous, features, labels, idxtrain, idxtest)
     
@@ -72,7 +74,7 @@ def main():
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
+    logger.info("Device: training on %s", device)
     model = GAT(features.shape[1], hidden_sizes=args.hidden_sizes, heads=args.heads)
     model.to(device)
 
@@ -87,8 +89,16 @@ def main():
     criterion = torch.nn.BCELoss()
 
     with mlflow.start_run():
-        mlflow.log_params({"epochs": epochs, "patience": patience, "lr": lr, "threshold": thres, "hidden_sizes": args.hidden_sizes, "heads": args.heads})
+        mlflow.log_params({
+            "batch_size": batch_size,
+            "epochs": epochs,
+            "patience": patience, 
+            "lr": lr, 
+            "threshold": thres, 
+            "hidden_sizes": args.hidden_sizes, 
+            "heads": args.heads})
 
+        logger.info("Starting training")
         for epoch in range(epochs):
             epoch_loss = 0.0
             for sampled_data in loader:
@@ -200,7 +210,7 @@ def argument_parser():
         help="learning rate for the training",
     )
     parser.add_argument(
-        "--heads", type=int, default=2, help="number of attention heads per GAT layer"
+        "--heads", type=int, default=1, help="number of attention heads per GAT layer"
     )
     parser.add_argument(
         "--thres", type=float, default=0.5, help="classification threshold"

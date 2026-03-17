@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import mlflow
 import torch
@@ -13,6 +14,9 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class MLP(nn.Module):
@@ -35,10 +39,8 @@ def main():
     mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
     mlflow.set_experiment(os.environ["EXPERIMENT_NAME"])
 
-    # Load dataset
+    logger.info("Loading dataset")
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
-
-    # Split dataset into training and testing sets
     xtrain, xtest, ytrain, ytest, _, _ = split_dataset(features, labels)
 
     # Convert data to PyTorch tensors
@@ -61,6 +63,7 @@ def main():
     counter = 0
     thres = args.thres
 
+    logger.info("Device: training on cpu")
     with mlflow.start_run():
         mlflow.log_params(
             {
@@ -72,6 +75,7 @@ def main():
             }
         )
 
+        logger.info("Starting training")
         for epoch in range(epochs):
             model.train()
             optimizer.zero_grad()
@@ -81,7 +85,6 @@ def main():
             loss.backward()
             optimizer.step()
 
-            # Evaluation
             with torch.no_grad():
                 model.eval()
                 test_output = model(xtest).squeeze()

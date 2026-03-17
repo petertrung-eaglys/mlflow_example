@@ -1,4 +1,5 @@
 import os
+import logging
 import torch
 import mlflow
 import argparse
@@ -13,6 +14,9 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class GCN(torch.nn.Module):
@@ -43,10 +47,8 @@ def main():
     mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
     mlflow.set_experiment(os.environ["EXPERIMENT_NAME"])
 
-    # Load dataset
+    logger.info("Loading dataset")
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
-
-    # Split dataset into training and testing sets
     _, _, _, _, idxtrain, idxtest = split_dataset(features, labels)
     data = graph_dataset(homogenous, features, labels, idxtrain, idxtest)
 
@@ -55,7 +57,7 @@ def main():
     transform(data)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
+    logger.info("Device: training on %s", device)
     model = GCN(features.shape[1], args.hidden_sizes)
     model.to(device)
     data_gpu = data.to(device)
@@ -80,6 +82,7 @@ def main():
                 "hidden_sizes": args.hidden_sizes,
             }
         )
+        logger.info("Starting training")
         for epoch in range(epochs):
             model.train()
             optimizer.zero_grad()
@@ -90,7 +93,6 @@ def main():
             loss.backward()
             optimizer.step()
 
-            # Evaluation
             with torch.no_grad():
                 model.eval()
                 ypred = model(data_gpu)
@@ -170,6 +172,9 @@ def argument_parser():
         type=float,
         default=0.001,
         help="learning rate for the training",
+    )
+    parser.add_argument(
+        "--thres", type=float, default=0.5, help="classification threshold"
     )
     args = parser.parse_args()
     return args

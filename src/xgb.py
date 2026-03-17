@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import mlflow
 
@@ -9,6 +10,9 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def xgb_model(
@@ -47,12 +51,6 @@ def xgb_model(
     precision = precision_score(ytest, ypred_binary)
     recall = recall_score(ytest, ypred_binary)
 
-    # Print the scores
-    print(f"Model ROC AUC (XGBoost) = {100 * roc_auc:.2f}%")
-    print(f"Model F1-score (XGBoost) = {f1:.3f}")
-    print(f"Model Precision (XGBoost) = {precision:.3f}")
-    print(f"Model Recall (XGBoost) = {recall:.3f}")
-
     return roc_auc, f1, precision, recall, xgb_classifier.get_params()
 
 
@@ -62,13 +60,11 @@ def main():
     mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
     mlflow.set_experiment(os.environ["EXPERIMENT_NAME"])
 
-    # Load dataset
+    logger.info("Loading dataset")
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
-
-    # Split dataset into training and testing sets
     xtrain, xtest, ytrain, ytest, _, _ = split_dataset(features, labels)
 
-    # Train and evaluate XGBoost model
+    logger.info("Starting training")
     with mlflow.start_run():
         roc_auc, f1, precision, recall, params = xgb_model(
             xtrain,
@@ -82,6 +78,7 @@ def main():
             colsample_bytree=args.colsample_bytree,
             thres=args.thres,
         )
+        logger.info("Evaluation: ROC AUC=%.4f | F1=%.4f | Precision=%.4f | Recall=%.4f", roc_auc, f1, precision, recall)
         mlflow.log_params(params)
         mlflow.log_metrics(
             {"roc_auc": roc_auc, "f1": f1, "precision": precision, "recall": recall}
