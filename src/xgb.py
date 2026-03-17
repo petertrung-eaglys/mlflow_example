@@ -66,7 +66,7 @@ def main():
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
 
     # Split dataset into training and testing sets
-    xtrain, xtest, ytrain, ytest = split_dataset(features, labels)
+    xtrain, xtest, ytrain, ytest, _, _ = split_dataset(features, labels)
 
     # Train and evaluate XGBoost model
     with mlflow.start_run():
@@ -77,7 +77,7 @@ def main():
             ytest,
             n_estimators=args.n_estimators,
             max_depth=args.max_depth,
-            learning_rate=args.learning_rate,
+            learning_rate=args.lr,
             subsample=args.subsample,
             colsample_bytree=args.colsample_bytree,
             thres=args.thres,

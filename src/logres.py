@@ -48,7 +48,7 @@ def main():
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
 
     # Split dataset into training and testing sets
-    xtrain, xtest, ytrain, ytest = split_dataset(features, labels)
+    xtrain, xtest, ytrain, ytest, _, _ = split_dataset(features, labels)
 
     # Train and evaluate logistic regression model
     with mlflow.start_run():

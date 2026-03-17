@@ -1,13 +1,13 @@
-import argparse
 import os
-import mlflow
 import torch
-import torch.nn as nn
-import torch.optim as optim
+import mlflow
+import argparse
+import torch.nn.functional as F
 
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
-
-from dataset import load_dataset, split_dataset
+from dataset import load_dataset, split_dataset, graph_dataset
+from torch_geometric.transforms import NormalizeFeatures
+from torch_geometric.nn import GCNConv
 
 from dotenv import load_dotenv
 
@@ -15,18 +15,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class MLP(nn.Module):
-    def __init__(self, input_size: int, hidden_sizes: list[int]):
-        super(MLP, self).__init__()
-        sizes = [input_size] + hidden_sizes
-        layers = []
-        for in_size, out_size in zip(sizes, sizes[1:]):
-            layers += [nn.Linear(in_size, out_size), nn.ReLU()]
-        layers.append(nn.Linear(sizes[-1], 1))
-        self.layers = nn.Sequential(*layers)
+class GCN(torch.nn.Module):
+    def __init__(self, num_features, hidden_sizes: list[int], seed=2022):
+        super().__init__()
+        torch.manual_seed(seed)
+        sizes = [num_features] + hidden_sizes
+        self.convs = torch.nn.ModuleList(
+            [GCNConv(in_size, out_size) for in_size, out_size in zip(sizes, sizes[1:])]
+        )
+        self.out = GCNConv(sizes[-1], 1)
 
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, data):
+        x, edge_index = data.x, data.edge_index
+
+        for conv in self.convs:
+            x = conv(x, edge_index)
+            x = F.relu(x)
+            x = F.dropout(x, training=self.training)
+        x = self.out(x, edge_index)
+
+        return torch.sigmoid(x)
 
 
 def main():
@@ -39,27 +47,28 @@ def main():
     labels, features, homogenous = load_dataset(args.matrix, args.adjlist)
 
     # Split dataset into training and testing sets
-    xtrain, xtest, ytrain, ytest, _, _ = split_dataset(features, labels)
+    _, _, _, _, idxtrain, idxtest = split_dataset(features, labels)
+    data = graph_dataset(homogenous, features, labels, idxtrain, idxtest)
 
     # Convert data to PyTorch tensors
-    xtrain = torch.FloatTensor(xtrain)
-    ytrain = torch.LongTensor(ytrain)
-    xtest = torch.FloatTensor(xtest)
-    ytest = torch.LongTensor(ytest)
+    transform = NormalizeFeatures()
+    transform(data)
 
-    # Initialize model, criterion, and optimizer
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
+    model = GCN(features.shape[1], args.hidden_sizes)
+    model.to(device)
+    data_gpu = data.to(device)
+
     lr = args.lr
-    input_size = xtrain.shape[1]
-    model = MLP(input_size, args.hidden_sizes)
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-
-    # Training the model
     epochs = args.epochs
     best_loss = float("inf")
     patience = args.patience
     counter = 0
     thres = args.thres
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+    criterion = torch.nn.BCELoss()
 
     with mlflow.start_run():
         mlflow.log_params(
@@ -71,29 +80,32 @@ def main():
                 "hidden_sizes": args.hidden_sizes,
             }
         )
-
         for epoch in range(epochs):
             model.train()
             optimizer.zero_grad()
-
-            output = model(xtrain).squeeze()
-            loss = criterion(output, ytrain.float())
+            out = model(data_gpu)
+            #for discussion on why masks is applied here, see: https://stackoverflow.com/questions/69019682/training-mask-not-used-in-pytorch-geometric-when-inputting-data-to-train-model
+            #loss
+            loss = criterion(out[data_gpu.train_mask], data.y[data_gpu.train_mask].reshape(-1,1).float())
             loss.backward()
             optimizer.step()
 
             # Evaluation
             with torch.no_grad():
                 model.eval()
-                test_output = model(xtest).squeeze()
-                vloss = criterion(test_output, ytest.float())
-                test_prob = torch.sigmoid(test_output)
+                ypred = model(data_gpu)
+                vloss = criterion(ypred[data_gpu.test_mask], data.y[data_gpu.test_mask].reshape(-1,1).float())
+
+                true = data.y[data_gpu.test_mask].clone().cpu().detach().numpy()
+                pred = ypred[data_gpu.test_mask].clone().cpu().detach()
+                test_prob = torch.sigmoid(pred)
                 ypred_proba = test_prob.numpy()
                 ypred_binary = (ypred_proba > thres).astype(int)
 
-                roc_auc = roc_auc_score(ytest, ypred_proba)
-                f1 = f1_score(ytest, ypred_binary)
-                precision = precision_score(ytest, ypred_binary)
-                recall = recall_score(ytest, ypred_binary)
+                roc_auc = roc_auc_score(true, ypred_proba)
+                f1 = f1_score(true, ypred_binary)
+                precision = precision_score(true, ypred_binary)
+                recall = recall_score(true, ypred_binary)
 
             print(
                 f"Epoch {epoch + 1}/{epochs} | "
@@ -115,7 +127,6 @@ def main():
                 },
                 step=epoch,
             )
-
             # Early stopping
             if vloss.item() < best_loss:
                 best_loss = vloss.item()
@@ -128,7 +139,7 @@ def main():
 
 
 def argument_parser():
-    parser = argparse.ArgumentParser(description="MLP Classifier")
+    parser = argparse.ArgumentParser(description="Graph Convolutional Network Classifier")
     parser.add_argument(
         "--matrix",
         type=str,
@@ -160,15 +171,9 @@ def argument_parser():
         default=0.001,
         help="learning rate for the training",
     )
-    parser.add_argument(
-        "--thres",
-        type=float,
-        default=0.5,
-        help="classification threshold (default 0.5)",
-    )
     args = parser.parse_args()
     return args
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

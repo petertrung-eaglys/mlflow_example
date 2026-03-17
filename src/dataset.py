@@ -1,6 +1,10 @@
+import torch
 import pickle
+import numpy as np
+import networkx as nx
 import scipy.sparse as sp
 from scipy.io import loadmat
+from torch_geometric.utils.convert import from_networkx
 
 from sklearn.model_selection import train_test_split
 from collections import defaultdict
@@ -48,13 +52,25 @@ def load_dataset(matrix, adjlist):
 
 
 def split_dataset(features, labels, test_size=0.2, random_state=99):
+    indices = np.arange(len(features))
+    xtrain, xtest, ytrain, ytest, idxtrain, idxtest = train_test_split(features,
+                                                                   labels,
+                                                                   indices,
+                                                                   stratify=labels,
+                                                                   test_size = test_size,
+                                                                   random_state = random_state)
+    return (xtrain, xtest, ytrain, ytest, idxtrain, idxtest)
 
-    # split data into test and train
-    xtrain, xtest, ytrain, ytest = train_test_split(
-        features,
-        labels,
-        test_size=test_size,
-        stratify=labels,
-        random_state=random_state,
-    )
-    return xtrain, xtest, ytrain, ytest
+
+def graph_dataset(homogenous, features, labels, idxtrain, idxtest):
+    g = nx.Graph(homogenous)
+    data = from_networkx(g)
+    data.x = torch.tensor(features).float()
+    data.y = torch.tensor(labels)
+    data.num_node_features = data.x.shape[-1]
+    data.num_classes = 1 #binary classification
+
+    A = set(range(len(labels)))
+    data.train_mask = torch.tensor([x in idxtrain for x in A])
+    data.test_mask = torch.tensor([x in idxtest for x in A])
+    return data
