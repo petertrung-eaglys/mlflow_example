@@ -12,3 +12,4 @@ wheels/
 # Data
 *.pickle
 *.mat
+*.db
