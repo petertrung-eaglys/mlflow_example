@@ -16,6 +16,79 @@ There are three different options to run MLflow for tracking, as shown on the fi
 
 ![Tracking options for MLflow](doc/tracking-setup-overview.png)
 
+**Option 1 — Localhost (default):** Artifacts and metadata are stored on the local filesystem under `mlruns/`. No server is needed. Set the tracking URI to a local path:
+
+```bash
+# .env
+MLFLOW_TRACKING_URI=./mlruns
+```
+
+View results with:
+
+```bash
+uv run mlflow ui
+```
+
+**Option 2 — Localhost with various data stores:** Run a local MLflow tracking server backed by a database for metadata and a configurable artifact store. Start the server before running any script.
+
+*Option 2a — SQLite (simple, no extra setup):*
+
+```bash
+uv run mlflow server \
+  --backend-store-uri sqlite:///mlflow.db \
+  --default-artifact-root ./mlartifacts \
+  --host 0.0.0.0 --port 5000
+```
+
+*Option 2b — PostgreSQL via Docker (recommended):*
+
+A `docker-compose.yml` is provided in `docker/` that starts a PostgreSQL database and an MLflow tracking server together:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+This exposes the MLflow UI at `http://localhost:5000`. Metadata is persisted in a named Postgres volume and artifacts in a named `mlartifacts` volume. To stop and remove containers (data volumes are preserved):
+
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
+For both Option 2a and 2b, set:
+
+```bash
+# .env
+MLFLOW_TRACKING_URI=http://localhost:5000/
+```
+
+**Option 3 — Remote tracking server:** Deploy MLflow on a shared host so the whole team can log and compare runs. Metadata is stored in Postgres and artifacts in cloud storage (e.g. S3 or an S3-compatible store such as MinIO).
+
+On the **remote host**, clone this repo and start the stack using `docker/docker-compose.remote.yml`. The compose file reads configuration from environment variables — create a `.env` file next to it (never commit this):
+
+```bash
+# On the remote host
+POSTGRES_PASSWORD=<strong-password>
+AWS_ACCESS_KEY_ID=<key>
+AWS_SECRET_ACCESS_KEY=<secret>
+ARTIFACT_ROOT=s3://<your-bucket>/mlflow   # or gs://<bucket>/mlflow for GCS
+
+# Optional: only needed for S3-compatible stores (e.g. MinIO)
+# MLFLOW_S3_ENDPOINT_URL=http://<minio-host>:9000
+```
+
+```bash
+docker compose -f docker/docker-compose.remote.yml up -d
+```
+
+The MLflow UI will be available at `http://<remote-host>:5000`. Expose it behind a reverse proxy (e.g. nginx, Caddy) with TLS for production use.
+
+On your **local machine**, point the client at the remote server:
+
+```bash
+# .env
+MLFLOW_TRACKING_URI=http://<remote-host>:5000/
+```
+
 **Configure MLflow environment variables:**
 
 ```bash
@@ -31,6 +104,37 @@ cp .env.example .env
 | `EXPERIMENT_NAME` | MLflow experiment name | `yelp_review` |
 
 **Dataset:** Unzip `YelpChi.zip` in `data/`. The adjacency list pickle is generated automatically on first run.
+
+## MLflow tracking basics
+
+### MLflow tracking
+
+Each script calls `mlflow.set_experiment()` to group runs under the experiment named by `EXPERIMENT_NAME`, then wraps training in `mlflow.start_run()`. Within each run:
+
+- `mlflow.log_params()` — records hyperparameters once at the start of the run:
+
+| Script | Logged parameters |
+|---|---|
+| `logres.py` | `random_state`, `threshold` |
+| `xgb.py` | `n_estimators`, `max_depth`, `learning_rate`, `subsample`, `colsample_bytree`, `threshold` |
+| `mlp.py` | `epochs`, `patience`, `lr`, `threshold`, `hidden_sizes` |
+| `gcn.py` | `epochs`, `patience`, `lr`, `threshold`, `hidden_sizes` |
+| `gat.py` | `epochs`, `patience`, `batch_size`, `lr`, `threshold`, `hidden_sizes`, `heads` |
+
+- `mlflow.log_metrics()` — records evaluation metrics. Classical models (`logres`, `xgb`) log once after training; deep learning models (`mlp`, `gcn`, `gat`) log per epoch with a step index, producing time-series curves in the UI:
+
+| Script | Logged metrics |
+|---|---|
+| `logres.py`, `xgb.py` | `roc_auc`, `f1`, `precision`, `recall` |
+| `mlp.py`, `gcn.py`, `gat.py` | `train_loss`, `val_loss`, `roc_auc`, `f1`, `precision`, `recall` (per epoch) |
+
+**Note:** MLflow also has autolog capabilities for most default ML libraries which will automatically log parameters, metrics and model. Instead of using `mlflow.log_params()` and `mlflow.log_metrics()` only use `mlflow.autolog()` before the training loop. For PyTorch, only PyTorch Lightning modules can be autologged.
+
+### MLflow models
+
+
+### MLflow dataset
+
 
 ## Running Models
 
