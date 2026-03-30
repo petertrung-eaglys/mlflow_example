@@ -13,3 +13,6 @@ wheels/
 *.pickle
 *.mat
 *.db
+
+# MLflow artifacts
+mlartifacts/

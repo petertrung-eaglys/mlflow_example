@@ -9,6 +9,7 @@ from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_sco
 from dataset import load_dataset, split_dataset, graph_dataset
 from torch_geometric.transforms import NormalizeFeatures
 from torch_geometric.nn import GCNConv
+from mlflow.models.signature import infer_signature
 
 from dotenv import load_dotenv
 
@@ -139,6 +140,17 @@ def main():
                     print("Early stopping triggered.")
                     break
 
+    if os.environ["MLFLOW_MODEL_LOG"]:
+        inputs = {                                                                                                                                                                                            
+            "x": data.x.cpu().numpy(),                                                                                                                                                                        
+            "edge_index": data.edge_index.cpu().numpy(),                                                                                                                                                      
+        }  
+        signature = infer_signature(inputs, model(data_gpu).cpu().detach().numpy())
+        mlflow.pytorch.log_model(
+            model,
+            name="GCN",
+            signature=signature
+        )
 
 def argument_parser():
     parser = argparse.ArgumentParser(description="Graph Convolutional Network Classifier")

@@ -5,6 +5,7 @@ import mlflow
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, recall_score, precision_score, roc_auc_score
+from mlflow.models.signature import infer_signature
 from dataset import load_dataset, split_dataset
 
 from dotenv import load_dotenv
@@ -34,7 +35,7 @@ def logistic_regression(xtrain, ytrain, xtest, ytest, thres=0.5, random_state=0)
     precision = precision_score(ytest, ypred_binary)
     recall = recall_score(ytest, ypred_binary)
 
-    return roc_auc, f1, precision, recall
+    return roc_auc, f1, precision, recall, clf
 
 
 def main():
@@ -50,12 +51,20 @@ def main():
     logger.info("Starting training")
     with mlflow.start_run():
         mlflow.log_params({"random_state": 0, "threshold": 0.5})
-        roc_auc, f1, precision, recall = logistic_regression(
+        roc_auc, f1, precision, recall, clf = logistic_regression(
             xtrain, ytrain, xtest, ytest, args.thres, args.random_state
         )
         logger.info("Evaluation: ROC AUC=%.4f | F1=%.4f | Precision=%.4f | Recall=%.4f", roc_auc, f1, precision, recall)
         mlflow.log_metrics(
             {"roc_auc": roc_auc, "f1": f1, "precision": precision, "recall": recall}
+        )
+    
+    if os.environ["MLFLOW_MODEL_LOG"]:
+        signature = infer_signature(xtest, clf.predict(xtest))
+        mlflow.sklearn.log_model(
+            clf,
+            name="logistic_regression",
+            signature=signature
         )
 
 

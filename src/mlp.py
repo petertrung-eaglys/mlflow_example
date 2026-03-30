@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
-
+from mlflow.models.signature import infer_signature
 from dataset import load_dataset, split_dataset
 
 from dotenv import load_dotenv
@@ -128,6 +128,13 @@ def main():
                 if counter >= patience:
                     print("Early stopping triggered.")
                     break
+        if os.environ["MLFLOW_MODEL_LOG"]:
+            signature = infer_signature(xtest.numpy(), model(xtest).detach().numpy())
+            mlflow.pytorch.log_model(
+                model,
+                name="MLP",
+                signature=signature
+            )
 
 
 def argument_parser():

@@ -6,6 +6,7 @@ import mlflow
 from dataset import load_dataset, split_dataset
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
 from xgboost import XGBClassifier
+from mlflow.models.signature import infer_signature
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -51,7 +52,7 @@ def xgb_model(
     precision = precision_score(ytest, ypred_binary)
     recall = recall_score(ytest, ypred_binary)
 
-    return roc_auc, f1, precision, recall, xgb_classifier.get_params()
+    return roc_auc, f1, precision, recall, xgb_classifier
 
 
 def main():
@@ -66,7 +67,7 @@ def main():
 
     logger.info("Starting training")
     with mlflow.start_run():
-        roc_auc, f1, precision, recall, params = xgb_model(
+        roc_auc, f1, precision, recall, xgb_clf = xgb_model(
             xtrain,
             ytrain,
             xtest,
@@ -79,10 +80,19 @@ def main():
             thres=args.thres,
         )
         logger.info("Evaluation: ROC AUC=%.4f | F1=%.4f | Precision=%.4f | Recall=%.4f", roc_auc, f1, precision, recall)
-        mlflow.log_params(params)
+        mlflow.log_params(xgb_clf.get_params())
         mlflow.log_metrics(
             {"roc_auc": roc_auc, "f1": f1, "precision": precision, "recall": recall}
         )
+    
+        if os.environ["MLFLOW_MODEL_LOG"]:
+            signature = infer_signature(xtest, xgb_clf.predict(xtest))
+            mlflow.xgboost.log_model(
+                xgb_clf,
+                name="XGBoost",
+                signature=signature
+            )
+
 
 
 def argument_parser():

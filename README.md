@@ -1,4 +1,4 @@
-# MLflow Basic — Fraud Detection on YelpChi
+# MLflow Basic - Fraud Detection on YelpChi
 
 MLflow-tracked ML experimentation for fraud detection on the [YelpChi](https://github.com/YingtongDou/CARE-GNN) dataset. Compares classical and deep learning models on a graph-structured dataset (~45k nodes, 32 features, binary fraud labels). This example was taken from the book [Graph Neural Network in Action](https://www.manning.com/books/graph-neural-networks-in-action) and modified.
 
@@ -16,7 +16,7 @@ There are three different options to run MLflow for tracking, as shown on the fi
 
 ![Tracking options for MLflow](doc/tracking-setup-overview.png)
 
-**Option 1 — Localhost (default):** Artifacts and metadata are stored on the local filesystem under `mlruns/`. No server is needed. Set the tracking URI to a local path:
+**Option 1 - Localhost (default):** Artifacts and metadata are stored on the local filesystem under `mlruns/`. No server is needed. Set the tracking URI to a local path:
 
 ```bash
 # .env
@@ -29,9 +29,9 @@ View results with:
 uv run mlflow ui
 ```
 
-**Option 2 — Localhost with various data stores:** Run a local MLflow tracking server backed by a database for metadata and a configurable artifact store. Start the server before running any script.
+**Option 2 - Localhost with various data stores:** Run a local MLflow tracking server backed by a database for metadata and a configurable artifact store. Start the server before running any script.
 
-*Option 2a — SQLite (simple, no extra setup):*
+*Option 2a - SQLite (simple, no extra setup):*
 
 ```bash
 uv run mlflow server \
@@ -40,7 +40,7 @@ uv run mlflow server \
   --host 0.0.0.0 --port 5000
 ```
 
-*Option 2b — PostgreSQL via Docker (recommended):*
+*Option 2b - PostgreSQL via Docker (recommended):*
 
 A `docker-compose.yml` is provided in `docker/` that starts a PostgreSQL database and an MLflow tracking server together:
 
@@ -61,9 +61,9 @@ For both Option 2a and 2b, set:
 MLFLOW_TRACKING_URI=http://localhost:5000/
 ```
 
-**Option 3 — Remote tracking server:** Deploy MLflow on a shared host so the whole team can log and compare runs. Metadata is stored in Postgres and artifacts in cloud storage (e.g. S3 or an S3-compatible store such as MinIO).
+**Option 3 - Remote tracking server:** Deploy MLflow on a shared host so the whole team can log and compare runs. Metadata is stored in Postgres and artifacts in cloud storage (e.g. S3 or an S3-compatible store such as MinIO).
 
-On the **remote host**, clone this repo and start the stack using `docker/docker-compose.remote.yml`. The compose file reads configuration from environment variables — create a `.env` file next to it (never commit this):
+On the **remote host**, clone this repo and start the stack using `docker/docker-compose.remote.yml`. The compose file reads configuration from environment variables - create a `.env` file next to it (never commit this):
 
 ```bash
 # On the remote host
@@ -111,7 +111,7 @@ cp .env.example .env
 
 Each script calls `mlflow.set_experiment()` to group runs under the experiment named by `EXPERIMENT_NAME`, then wraps training in `mlflow.start_run()`. Within each run:
 
-- `mlflow.log_params()` — records hyperparameters once at the start of the run:
+- `mlflow.log_params()` - records hyperparameters once at the start of the run:
 
 | Script | Logged parameters |
 |---|---|
@@ -121,7 +121,7 @@ Each script calls `mlflow.set_experiment()` to group runs under the experiment n
 | `gcn.py` | `epochs`, `patience`, `lr`, `threshold`, `hidden_sizes` |
 | `gat.py` | `epochs`, `patience`, `batch_size`, `lr`, `threshold`, `hidden_sizes`, `heads` |
 
-- `mlflow.log_metrics()` — records evaluation metrics. Classical models (`logres`, `xgb`) log once after training; deep learning models (`mlp`, `gcn`, `gat`) log per epoch with a step index, producing time-series curves in the UI:
+- `mlflow.log_metrics()` - records evaluation metrics. Classical models (`logres`, `xgb`) log once after training; deep learning models (`mlp`, `gcn`, `gat`) log per epoch with a step index, producing time-series curves in the UI:
 
 | Script | Logged metrics |
 |---|---|
@@ -132,9 +132,11 @@ Each script calls `mlflow.set_experiment()` to group runs under the experiment n
 
 ### MLflow models
 
+TODO
 
 ### MLflow dataset
 
+TODO
 
 ## Running Models
 
